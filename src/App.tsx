@@ -477,8 +477,8 @@ const Settings: React.FC = () => {
                 <span className="text-sm font-medium">Professional</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Storage Used</span>
-                <span className="text-sm font-medium">2.4 GB / 10 GB</span>
+                <span className="text-sm text-gray-600">Email Connections</span>
+                <span className="text-sm font-medium">2 / 30</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Next Billing</span>

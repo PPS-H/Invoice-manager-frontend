@@ -106,4 +106,10 @@ export const vendorsAPI = {
   },
 };
 
+// Stripe API
+export const stripeAPI = {
+  getProducts: () => api.get('/api/stripe/products').then(res => res.data),
+  getProduct: (productId: string) => api.get(`/api/stripe/products/${productId}`).then(res => res.data),
+};
+
 export default api; 

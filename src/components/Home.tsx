@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import anime from 'animejs';
+import { useQuery } from '@tanstack/react-query';
+import { stripeAPI } from '../services/api';
 import { 
   ArrowRight, 
   CheckCircle, 
@@ -39,6 +41,14 @@ const Home: React.FC = () => {
   const invoiceAnimationRef = useRef<HTMLDivElement>(null);
   const floatingElementsRef = useRef<HTMLDivElement>(null);
   const [isGearOpen, setIsGearOpen] = useState(false);
+
+  // Fetch products from Stripe API
+  const { data: productsData, isLoading: productsLoading, error: productsError } = useQuery({
+    queryKey: ['stripe-products'],
+    queryFn: () => stripeAPI.getProducts(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 2
+  });
 
   // Track mouse movement for interactive animations
   useEffect(() => {
@@ -90,18 +100,30 @@ const Home: React.FC = () => {
     }
   ];
 
-  const pricingPlans = [
+  // Transform Stripe products to match our UI format
+  const pricingPlans = productsData?.products?.map((product: any) => ({
+    id: product.id,
+    name: product.name,
+    price: product.price,
+    period: product.recurring ? '/month' : '',
+    description: product.description || '',
+    features: product.features || [],
+    popular: product.popular || false,
+    cta: product.price === 'Contact Sales' ? 'Contact Sales' : 'Start Free Trial',
+    price_id: product.price_id
+  })) || [];
+
+  // Fallback static data if API fails
+  const fallbackPricingPlans = [
     {
       name: 'Starter',
-      price: '$30',
+      price: '$19',
       period: '/month',
-      description: 'For small teams getting started',
+      description: 'Perfect for small businesses',
       features: [
-        '2 Gmail accounts',
-        '1 Google Group',
-        'AI data extraction',
-        'Google Drive storage',
-        'Basic categorization',
+        '3 email connections',
+        'AI-powered invoice processing',
+        'Google Drive integration',
         'Email support'
       ],
       popular: false,
@@ -111,32 +133,26 @@ const Home: React.FC = () => {
       name: 'Business',
       price: '$50',
       period: '/month',
-      description: 'For growing teams and businesses',
+      description: 'Ideal for growing businesses',
       features: [
-        '4 Gmail accounts',
-        '3 Google Groups',
-        'Advanced AI extraction',
-        'Team collaboration',
-        'Custom workflows',
-        'Priority support',
-        'Advanced analytics'
+        '10 email connections',
+        'AI-powered invoice processing',
+        'Google Drive integration',
+        'Priority email support'
       ],
       popular: true,
       cta: 'Start Free Trial'
     },
     {
       name: 'Professional',
-      price: '$99',
+      price: '$100',
       period: '/month',
-      description: 'For larger organizations',
+      description: 'For established organizations',
       features: [
-        '8 Gmail accounts',
-        '7 Google Groups',
-        'Full team features',
-        'Custom integrations',
-        'Advanced automation',
-        'Dedicated support',
-        'SLA guarantee'
+        '30 email connections',
+        'AI-powered invoice processing',
+        'Google Drive integration',
+        'Priority email support'
       ],
       popular: false,
       cta: 'Start Free Trial'
@@ -147,19 +163,18 @@ const Home: React.FC = () => {
       period: '/month',
       description: 'For large scale operations',
       features: [
-        'Unlimited Gmail accounts',
-        'Unlimited Google Groups',
-        'White-label solution',
-        'Custom development',
-        'API access',
-        '24/7 dedicated support',
-        'Custom training',
-        'Enterprise SLA'
+        'Unlimited email connections',
+        'AI-powered invoice processing',
+        'Google Drive integration',
+        'Dedicated support'
       ],
       popular: false,
       cta: 'Contact Sales'
     }
   ];
+
+  // Use dynamic data if available, otherwise fallback to static
+  const displayPricingPlans = pricingPlans.length > 0 ? pricingPlans : fallbackPricingPlans;
 
   const testimonials = [
     {
@@ -692,12 +707,68 @@ const Home: React.FC = () => {
               <span className="block text-indigo-600 dark:text-indigo-400">that scales with you</span>
             </h2>
             <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-              Start free, upgrade as you process more invoices. All plans include Google integration.
+              Choose the plan that fits your email connection needs. All plans include AI-powered invoice processing.
             </p>
           </div>
           
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {pricingPlans.map((plan, index) => (
+          {productsLoading ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+              <span className="ml-3 text-gray-600">Loading pricing plans...</span>
+            </div>
+          ) : productsError ? (
+            <div className="text-center py-12">
+              <p className="text-red-600 mb-4">Failed to load pricing plans. Showing default plans.</p>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+                {displayPricingPlans.map((plan, index) => (
+                  <div key={index} className={`pricing-card relative ${plan.popular ? 'lg:scale-105' : ''}`}>
+                    <div className={`h-full p-8 bg-white dark:bg-gray-800 rounded-2xl border-2 transition-all duration-300 hover:shadow-xl ${
+                      plan.popular 
+                        ? 'border-indigo-500 shadow-lg' 
+                        : 'border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-500'
+                    }`}>
+                      {plan.popular && (
+                        <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                          <span className="bg-indigo-600 text-white px-6 py-2 rounded-full text-sm font-bold shadow-lg">
+                            Most Popular
+                          </span>
+                        </div>
+                      )}
+                      
+                      <div className="text-center">
+                        <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{plan.name}</h3>
+                        <p className="text-gray-600 dark:text-gray-300 mb-6">{plan.description}</p>
+                        
+                        <div className="mb-8">
+                          <span className="text-5xl font-bold text-gray-900 dark:text-white">{plan.price}</span>
+                          <span className="text-gray-500 dark:text-gray-400 ml-1 text-lg">{plan.period}</span>
+                        </div>
+                        
+                        <ul className="space-y-4 mb-8 text-left">
+                          {plan.features.map((feature, featureIndex) => (
+                            <li key={featureIndex} className="flex items-center">
+                              <CheckCircle className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
+                              <span className="text-gray-700 dark:text-gray-300">{feature}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        
+                        <button className={`w-full py-3 px-6 rounded-lg font-semibold transition-all duration-200 ${
+                          plan.popular
+                            ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg hover:shadow-xl'
+                            : 'bg-gray-900 hover:bg-gray-800 text-white'
+                        }`}>
+                          {plan.cta}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+              {displayPricingPlans.map((plan, index) => (
               <div key={index} className={`pricing-card relative ${plan.popular ? 'lg:scale-105' : ''}`}>
                 <div className={`h-full p-8 bg-white dark:bg-gray-800 rounded-2xl border-2 transition-all duration-300 hover:shadow-xl ${
                   plan.popular 
@@ -743,7 +814,8 @@ const Home: React.FC = () => {
                 </div>
               </div>
             ))}
-          </div>
+            </div>
+          )}
         </div>
       </section>
 
