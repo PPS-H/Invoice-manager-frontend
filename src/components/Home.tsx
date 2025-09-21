@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import anime from 'animejs';
-import { useQuery } from '@tanstack/react-query';
-import { stripeAPI } from '../services/api';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { stripeAPI, checkoutAPI } from '../services/api';
 import { 
   ArrowRight, 
   CheckCircle, 
@@ -49,6 +49,35 @@ const Home: React.FC = () => {
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 2
   });
+
+  // Checkout mutation
+  const checkoutMutation = useMutation({
+    mutationFn: (data: { priceId: string; mode: string }) => checkoutAPI.createSession(data),
+    onSuccess: (data) => {
+      // Redirect to Stripe Checkout
+      window.location.href = data.session_url;
+    },
+    onError: (error) => {
+      console.error('Checkout error:', error);
+      alert('Failed to start checkout. Please try again.');
+    }
+  });
+
+  // Handle checkout click
+  const handleCheckout = (priceId: string, mode: string = 'subscription') => {
+    if (!priceId) {
+      alert('Price ID not available. Please try again later.');
+      return;
+    }
+    
+    // Check if using fallback price ID
+    if (priceId.startsWith('fallback_')) {
+      alert('Please wait for pricing data to load, or refresh the page to try again.');
+      return;
+    }
+    
+    checkoutMutation.mutate({ priceId, mode });
+  };
 
   // Track mouse movement for interactive animations
   useEffect(() => {
@@ -127,7 +156,8 @@ const Home: React.FC = () => {
         'Email support'
       ],
       popular: false,
-      cta: 'Start Free Trial'
+      cta: 'Start Free Trial',
+      price_id: 'fallback_starter' // Fallback price ID
     },
     {
       name: 'Business',
@@ -141,7 +171,8 @@ const Home: React.FC = () => {
         'Priority email support'
       ],
       popular: true,
-      cta: 'Start Free Trial'
+      cta: 'Start Free Trial',
+      price_id: 'fallback_business' // Fallback price ID
     },
     {
       name: 'Professional',
@@ -155,7 +186,8 @@ const Home: React.FC = () => {
         'Priority email support'
       ],
       popular: false,
-      cta: 'Start Free Trial'
+      cta: 'Start Free Trial',
+      price_id: 'fallback_professional' // Fallback price ID
     },
     {
       name: 'Enterprise',
@@ -169,7 +201,8 @@ const Home: React.FC = () => {
         'Dedicated support'
       ],
       popular: false,
-      cta: 'Contact Sales'
+      cta: 'Contact Sales',
+      price_id: 'fallback_enterprise' // Fallback price ID
     }
   ];
 
@@ -801,16 +834,17 @@ const Home: React.FC = () => {
                     ))}
                   </ul>
                   
-                  <Link
-                    to="/login"
+                  <button
+                    onClick={() => handleCheckout(plan.price_id, 'subscription')}
+                    disabled={checkoutMutation.isPending || !plan.price_id}
                     className={`w-full block text-center py-4 px-6 rounded-xl font-bold transition-all duration-200 ${
                       plan.popular
                         ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg hover:shadow-xl'
                         : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white'
-                    }`}
+                    } ${checkoutMutation.isPending ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
-                    {plan.cta}
-                  </Link>
+                    {checkoutMutation.isPending ? 'Processing...' : plan.cta}
+                  </button>
                 </div>
               </div>
             ))}

@@ -18,6 +18,9 @@ import InvoiceReview from './components/InvoiceReview';
 import TextInvoiceProcessor from './components/TextInvoiceProcessor';
 import EmailAccountInvite from './pages/EmailAccountInvite';
 import InviteSuccess from './pages/InviteSuccess';
+import CheckoutSuccess from './pages/CheckoutSuccess';
+import CheckoutCancel from './pages/CheckoutCancel';
+import SubscriptionManager from './components/SubscriptionManager';
 
 import { 
   Mail, 
@@ -32,7 +35,12 @@ import {
   Bell,
   Download,
   RefreshCw,
-  Filter
+  Filter,
+  CreditCard,
+  Calendar,
+  Users,
+  AlertCircle,
+  XCircle
 } from 'lucide-react';
 
 // Create a client
@@ -135,6 +143,8 @@ const Settings: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
   const [emailAccountsCount, setEmailAccountsCount] = useState(0);
+  const [subscriptionData, setSubscriptionData] = useState(null);
+  const [usageData, setUsageData] = useState(null);
 
   // Fetch email accounts count
   useEffect(() => {
@@ -160,6 +170,46 @@ const Settings: React.FC = () => {
     };
 
     fetchEmailAccountsCount();
+  }, []);
+
+  // Fetch subscription data
+  useEffect(() => {
+    const fetchSubscriptionData = async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        if (!token) return;
+
+        // Fetch subscription
+        const subscriptionResponse = await fetch(`${API_BASE_URL}/api/subscriptions/my-subscription`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (subscriptionResponse.ok) {
+          const subscription = await subscriptionResponse.json();
+          setSubscriptionData(subscription);
+        }
+
+        // Fetch usage data
+        const usageResponse = await fetch(`${API_BASE_URL}/api/subscriptions/usage`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (usageResponse.ok) {
+          const usage = await usageResponse.json();
+          setUsageData(usage);
+        }
+      } catch (error) {
+        console.error('Failed to fetch subscription data:', error);
+      }
+    };
+
+    fetchSubscriptionData();
   }, []);
 
   const handleNotificationChange = (key: string, value: boolean) => {
@@ -233,6 +283,7 @@ const Settings: React.FC = () => {
         <nav className="-mb-px flex space-x-8">
           {[
             { id: 'profile', name: 'Profile', icon: User },
+            { id: 'subscription', name: 'Subscription', icon: CreditCard },
             { id: 'notifications', name: 'Notifications', icon: Bell },
             { id: 'security', name: 'Security', icon: Shield },
             { id: 'preferences', name: 'Preferences', icon: SettingsIcon }
@@ -329,6 +380,11 @@ const Settings: React.FC = () => {
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Subscription Tab */}
+          {activeTab === 'subscription' && (
+            <SubscriptionManager />
           )}
 
           {/* Notifications Tab */}
@@ -474,18 +530,43 @@ const Settings: React.FC = () => {
             <div className="space-y-3">
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Plan</span>
-                <span className="text-sm font-medium">Professional</span>
+                <span className="text-sm font-medium">
+                  {subscriptionData ? (
+                    <span className={`px-2 py-1 rounded-full text-xs ${
+                      subscriptionData.status === 'active' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {subscriptionData.status === 'active' ? 'Active' : subscriptionData.status}
+                    </span>
+                  ) : (
+                    'No Subscription'
+                  )}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Email Connections</span>
-                <span className="text-sm font-medium">2 / 30</span>
+                <span className="text-sm font-medium">
+                  {usageData?.usage?.email_connections ? (
+                    `${usageData.usage.email_connections.used} / ${usageData.usage.email_connections.limit}`
+                  ) : (
+                    `${emailAccountsCount} / -`
+                  )}
+                </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Next Billing</span>
-                <span className="text-sm font-medium">Jan 15, 2024</span>
-              </div>
-              <button className="w-full mt-3 px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
-                Upgrade Plan
+              {subscriptionData && (
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Next Billing</span>
+                  <span className="text-sm font-medium">
+                    {new Date(subscriptionData.current_period_end).toLocaleDateString()}
+                  </span>
+                </div>
+              )}
+              <button 
+                onClick={() => setActiveTab('subscription')}
+                className="w-full mt-3 px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              >
+                {subscriptionData ? 'Manage Subscription' : 'View Plans'}
               </button>
             </div>
           </div>
@@ -694,6 +775,9 @@ const App: React.FC = () => {
         <Route path="/invite/:token" element={<InviteAccept />} />
         <Route path="/invite/add-email/:token" element={<EmailAccountInvite />} />
         <Route path="/invite-success" element={<InviteSuccess />} />
+        <Route path="/success" element={<CheckoutSuccess />} />
+        <Route path="/cancel" element={<CheckoutCancel />} />
+        <Route path="/subscription" element={<SubscriptionManager />} />
           <Route
             path="/"
             element={<Home />}

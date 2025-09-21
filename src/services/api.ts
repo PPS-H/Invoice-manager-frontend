@@ -112,4 +112,12 @@ export const stripeAPI = {
   getProduct: (productId: string) => api.get(`/api/stripe/products/${productId}`).then(res => res.data),
 };
 
+// Checkout API
+export const checkoutAPI = {
+  createSession: (data: { priceId: string; mode: string }) => 
+    api.post('/api/checkout/create-session', data).then(res => res.data),
+  getSession: (sessionId: string) => 
+    api.get(`/api/checkout/session/${sessionId}`).then(res => res.data),
+};
+
 export default api; 
